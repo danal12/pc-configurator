@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="database.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="0"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="936"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="builds" custom_title="0" dock_id="1" table="4,6:mainbuilds"/><dock_state state="000000ff00000000fd00000001000000020000000000000000fc0100000001fb000000160064006f0063006b00420072006f00770073006500310100000000ffffffff0000012e00ffffff000000000000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="SQL 1*">INSERT INTO components (type, name, price, specs, platform) VALUES
+
+-- ================= CPU INTEL =================
+('cpu', 'Intel Pentium Gold G7400', 8500, '2C/4T LGA1700 DDR4 DDR5', 'intel'),
+('cpu', 'Intel Core i3-12100F', 14000, '4C/8T LGA1700 DDR4 DDR5', 'intel'),
+('cpu', 'Intel Core i3-14100F', 17500, '4C/8T LGA1700 DDR4 DDR5', 'intel'),
+('cpu', 'Intel Core i5-12400F', 23000, '6C/12T LGA1700 DDR4 DDR5', 'intel'),
+('cpu', 'Intel Core i5-13400F', 31000, '10C/16T LGA1700 DDR4 DDR5', 'intel'),
+('cpu', 'Intel Core i5-14600KF', 47000, '14C/20T LGA1700 DDR5', 'intel'),
+('cpu', 'Intel Core i7-14700KF', 69000, '20C/28T LGA1700 DDR5', 'intel'),
+('cpu', 'Intel Core i9-14900KF', 98000, '24C/32T LGA1700 DDR5', 'intel'),
+
+-- ================= CPU AMD =================
+('cpu', 'AMD Ryzen 3 4100', 9000, '4C/8T AM4 DDR4', 'amd'),
+('cpu', 'AMD Ryzen 5 5500', 13000, '6C/12T AM4 DDR4', 'amd'),
+('cpu', 'AMD Ryzen 5 5600', 17000, '6C/12T AM4 DDR4', 'amd'),
+('cpu', 'AMD Ryzen 5 7500F', 24000, '6C/12T AM5 DDR5', 'amd'),
+('cpu', 'AMD Ryzen 7 7700', 36000, '8C/16T AM5 DDR5', 'amd'),
+('cpu', 'AMD Ryzen 7 7800X3D', 56000, '8C/16T AM5 DDR5', 'amd'),
+('cpu', 'AMD Ryzen 9 7900X', 72000, '12C/24T AM5 DDR5', 'amd'),
+('cpu', 'AMD Ryzen 9 7950X3D', 99000, '16C/32T AM5 DDR5', 'amd'),
+
+-- ================= GPU =================
+('gpu', 'RTX 3050 8GB', 24000, '8GB GDDR6', 'any'),
+('gpu', 'RTX 4060 8GB', 39000, '8GB GDDR6', 'any'),
+('gpu', 'RTX 4060 Ti 16GB', 58000, '16GB GDDR6', 'any'),
+('gpu', 'RTX 4070 SUPER', 85000, '12GB GDDR6X', 'any'),
+('gpu', 'RTX 4070 Ti SUPER', 122000, '16GB GDDR6X', 'any'),
+('gpu', 'RTX 4080 SUPER', 168000, '16GB GDDR6X', 'any'),
+('gpu', 'RTX 4090', 290000, '24GB GDDR6X', 'any'),
+
+('gpu', 'RX 6600', 23000, '8GB GDDR6', 'any'),
+('gpu', 'RX 7600', 35000, '8GB GDDR6', 'any'),
+('gpu', 'RX 7700 XT', 62000, '12GB GDDR6', 'any'),
+('gpu', 'RX 7800 XT', 82000, '16GB GDDR6', 'any'),
+('gpu', 'RX 7900 XT', 128000, '20GB GDDR6', 'any'),
+('gpu', 'RX 7900 XTX', 175000, '24GB GDDR6', 'any'),
+
+-- ================= RAM DDR4 =================
+('ram', '16GB DDR4 3200MHz', 11000, 'DDR4 16GB', 'any'),
+('ram', '32GB DDR4 3600MHz', 21000, 'DDR4 32GB', 'any'),
+('ram', '64GB DDR4 3600MHz', 42000, 'DDR4 64GB', 'any'),
+
+-- ================= RAM DDR5 =================
+('ram', '16GB DDR5 5600MHz', 22000, 'DDR5 16GB', 'any'),
+('ram', '32GB DDR5 6000MHz', 43000, 'DDR5 32GB', 'any'),
+('ram', '64GB DDR5 6400MHz', 79000, 'DDR5 64GB', 'any'),
+
+-- ================= MOTHERBOARD INTEL =================
+('motherboard', 'H610M DDR4', 9000, 'LGA1700 DDR4', 'intel'),
+('motherboard', 'B660M DDR4', 13000, 'LGA1700 DDR4', 'intel'),
+('motherboard', 'B760 DDR5', 22000, 'LGA1700 DDR5', 'intel'),
+('motherboard', 'Z790 DDR5', 42000, 'LGA1700 DDR5', 'intel'),
+
+-- ================= MOTHERBOARD AMD =================
+('motherboard', 'A520M', 8500, 'AM4 DDR4', 'amd'),
+('motherboard', 'B550M', 14000, 'AM4 DDR4', 'amd'),
+('motherboard', 'B650 DDR5', 24000, 'AM5 DDR5', 'amd'),
+('motherboard', 'X670E DDR5', 48000, 'AM5 DDR5', 'amd'),
+
+-- ================= PSU =================
+('psu', '500W Bronze', 6500, '500W 80+', 'any'),
+('psu', '650W Bronze', 8500, '650W 80+', 'any'),
+('psu', '750W Gold', 14000, '750W Gold', 'any'),
+('psu', '850W Gold', 18500, '850W Gold', 'any'),
+('psu', '1000W Platinum', 32000, '1000W Platinum', 'any');</sql><current_tab id="0"/></tab_sql></sqlb_project>
