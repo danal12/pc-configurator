@@ -7,10 +7,20 @@ let currentEditingBuild = null;
 // ================= LOAD COMPONENTS =================
 async function loadComponents() {
 
-    const res = await fetch('/api/components');
-    allComponents = await res.json();
+    try {
 
-    console.log("components loaded", allComponents);
+        const res = await fetch('/api/components');
+
+        allComponents = await res.json();
+
+        console.log("components loaded", allComponents);
+
+    } catch (e) {
+
+        console.error(e);
+
+        alert("Ошибка загрузки компонентов");
+    }
 }
 
 // ================= USER =================
@@ -19,7 +29,9 @@ function getUserId() {
     let id = localStorage.getItem("pc_user_id");
 
     if (!id) {
+
         id = "user_" + Math.random().toString(36).slice(2, 12);
+
         localStorage.setItem("pc_user_id", id);
     }
 
@@ -28,7 +40,10 @@ function getUserId() {
 
 // ================= HELPERS =================
 function getPlatform() {
-    return document.querySelector('input[name="platform"]:checked')?.value || "any";
+
+    return document.querySelector(
+        'input[name="platform"]:checked'
+    )?.value || "any";
 }
 
 function pickBest(list, maxPrice) {
@@ -40,6 +55,18 @@ function pickBest(list, maxPrice) {
         .sort((a, b) => b.price - a.price);
 
     return filtered[0] || null;
+}
+
+function findClosest(list, target) {
+
+    if (!list || !list.length) return null;
+
+    return [...list].sort((a, b) => {
+
+        return Math.abs(a.price - target)
+            - Math.abs(b.price - target);
+
+    })[0];
 }
 
 function getSocket(specs = "") {
@@ -61,8 +88,90 @@ function getRamType(specs = "") {
     return "";
 }
 
-function findByName(list, name) {
+function findByName(list = [], name) {
+
     return list.find(x => x.name === name);
+}
+
+// ================= FPS =================
+function estimateFPS(gpuName = "", purpose = "gaming") {
+
+    gpuName = gpuName.toLowerCase();
+
+    if (purpose !== "gaming") {
+
+        return {
+            cs2: "—",
+            gta5: "—",
+            dota2: "—"
+        };
+    }
+
+    // HIGH END
+    if (
+        gpuName.includes("5090") ||
+        gpuName.includes("5080") ||
+        gpuName.includes("4090") ||
+        gpuName.includes("4080")
+    ) {
+
+        return {
+            cs2: "400+ FPS",
+            gta5: "220 FPS",
+            dota2: "320 FPS"
+        };
+    }
+
+    // GOOD
+    if (
+        gpuName.includes("4070") ||
+        gpuName.includes("5070") ||
+        gpuName.includes("7800")
+    ) {
+
+        return {
+            cs2: "320 FPS",
+            gta5: "180 FPS",
+            dota2: "220 FPS"
+        };
+    }
+
+    // MID
+    if (
+        gpuName.includes("4060") ||
+        gpuName.includes("3060") ||
+        gpuName.includes("3070") ||
+        gpuName.includes("7700")
+    ) {
+
+        return {
+            cs2: "240 FPS",
+            gta5: "140 FPS",
+            dota2: "180 FPS"
+        };
+    }
+
+    // LOW
+    if (
+        gpuName.includes("3050") ||
+        gpuName.includes("6600") ||
+        gpuName.includes("2060")
+    ) {
+
+        return {
+            cs2: "170 FPS",
+            gta5: "95 FPS",
+            dota2: "120 FPS"
+        };
+    }
+
+    // VERY LOW
+    return {
+
+        cs2: "100 FPS",
+        gta5: "60 FPS",
+        dota2: "80 FPS"
+    };
 }
 
 // ================= COMPATIBILITY =================
@@ -75,18 +184,37 @@ function checkCompatibility(cpu, mobo, ram) {
 
     const ramType = getRamType(ram?.specs || "");
 
-    // CPU + motherboard
-    if (cpuSocket !== moboSocket) {
-        problems.push(`❌ Сокет CPU (${cpuSocket}) не подходит к материнке (${moboSocket})`);
+    if (
+        cpuSocket &&
+        moboSocket &&
+        cpuSocket !== moboSocket
+    ) {
+
+        problems.push(
+            `❌ Сокет CPU (${cpuSocket}) не подходит к материнке (${moboSocket})`
+        );
     }
 
-    // RAM check
-    if (ramType === "DDR5" && !mobo.specs.includes("DDR5")) {
-        problems.push(`❌ DDR5 память не поддерживается материнкой`);
+    if (
+        ramType === "DDR5"
+        &&
+        !mobo?.specs?.includes("DDR5")
+    ) {
+
+        problems.push(
+            `❌ DDR5 память не поддерживается материнкой`
+        );
     }
 
-    if (ramType === "DDR4" && mobo.specs.includes("DDR5")) {
-        problems.push(`❌ DDR4 память не подходит к DDR5 материнке`);
+    if (
+        ramType === "DDR4"
+        &&
+        mobo?.specs?.includes("DDR5")
+    ) {
+
+        problems.push(
+            `❌ DDR4 память не подходит к DDR5 материнке`
+        );
     }
 
     return problems;
@@ -95,8 +223,13 @@ function checkCompatibility(cpu, mobo, ram) {
 // ================= GENERATE BUILDS =================
 function generateBuilds() {
 
-    const purpose = document.getElementById('purpose').value;
-    const budget = parseInt(document.getElementById('budget').value);
+    const purpose =
+        document.getElementById('purpose').value;
+
+    const budget =
+        parseInt(
+            document.getElementById('budget').value
+        );
 
     let cpus = allComponents.cpu || [];
     let gpus = allComponents.gpu || [];
@@ -106,16 +239,33 @@ function generateBuilds() {
 
     const platform = getPlatform();
 
+    // FILTER PLATFORM
     if (platform !== "any") {
+
         cpus = cpus.filter(x =>
-            x.platform === platform || x.platform === "any"
+
+            x.platform === platform
+            ||
+            x.platform === "any"
         );
     }
 
     const configs = [
-        { name: "Бюджет", ratio: 0.85 },
-        { name: "Баланс", ratio: 0.95 },
-        { name: "Максимум", ratio: 1.0 }
+
+        {
+            name: "Бюджет",
+            ratio: 0.85
+        },
+
+        {
+            name: "Баланс",
+            ratio: 0.95
+        },
+
+        {
+            name: "Максимум",
+            ratio: 1.0
+        }
     ];
 
     const builds = [];
@@ -128,42 +278,72 @@ function generateBuilds() {
         let gpuShare = 0.42;
         let ramShare = 0.12;
 
+        // VIDEO
         if (purpose === "video") {
+
             cpuShare = 0.35;
             gpuShare = 0.35;
             ramShare = 0.15;
         }
 
+        // OFFICE
         if (purpose === "office") {
+
             cpuShare = 0.35;
             gpuShare = 0.10;
             ramShare = 0.15;
         }
 
         // CPU
-        const cpu = pickBest(cpus, target * cpuShare);
+        const cpu = findClosest(
+
+            cpus.filter(x =>
+                x.price <= target * cpuShare * 1.3
+            ),
+
+            target * cpuShare
+        );
 
         if (!cpu) return;
 
-        // Motherboard
+        // MOBO
         const socket = getSocket(cpu.specs);
 
-        let motherboard = mobos.find(m =>
+        let motherboardPool = mobos.filter(m =>
             m.specs.includes(socket)
         );
+
+        let motherboard = pickBest(
+
+            motherboardPool,
+            target * 0.12
+        );
+
+        if (!motherboard) {
+
+            motherboard = motherboardPool[0];
+        }
 
         if (!motherboard) return;
 
         // RAM
-        const ramType = motherboard.specs.includes("DDR5")
-            ? "DDR5"
-            : "DDR4";
+        const ramType =
+            motherboard.specs.includes("DDR5")
+                ? "DDR5"
+                : "DDR4";
 
         let ramPool = rams.filter(r =>
             r.specs.includes(ramType)
         );
 
-        const ram = pickBest(ramPool, target * ramShare);
+        const ram = findClosest(
+
+            ramPool.filter(x =>
+                x.price <= target * ramShare * 1.5
+            ),
+
+            target * ramShare
+        );
 
         if (!ram) return;
 
@@ -180,7 +360,14 @@ function generateBuilds() {
 
         } else {
 
-            gpu = pickBest(gpus, target * gpuShare);
+            gpu = findClosest(
+
+                gpus.filter(x =>
+                    x.price <= target * gpuShare * 1.3
+                ),
+
+                target * gpuShare
+            );
 
             if (!gpu) return;
         }
@@ -189,41 +376,71 @@ function generateBuilds() {
         let psu;
 
         if (gpu.price >= 120000) {
-            psu = psus.find(x => x.name.includes("850"));
-        }
-        else if (gpu.price >= 70000) {
-            psu = psus.find(x => x.name.includes("750"));
-        }
-        else if (gpu.price >= 35000) {
-            psu = psus.find(x => x.name.includes("650"));
-        }
-        else {
-            psu = psus.find(x => x.name.includes("550"));
+
+            psu = psus.find(x =>
+                x.name.includes("850")
+            );
+
+        } else if (gpu.price >= 70000) {
+
+            psu = psus.find(x =>
+                x.name.includes("750")
+            );
+
+        } else if (gpu.price >= 35000) {
+
+            psu = psus.find(x =>
+                x.name.includes("650")
+            );
+
+        } else {
+
+            psu = psus.find(x =>
+                x.name.includes("550")
+            );
         }
 
-        if (!psu) psu = psus[0];
+        if (!psu) {
+
+            psu = psus[0];
+        }
 
         // TOTAL
         const total =
-            cpu.price +
-            gpu.price +
-            ram.price +
-            motherboard.price +
+
+            cpu.price
+            +
+            gpu.price
+            +
+            ram.price
+            +
+            motherboard.price
+            +
             psu.price;
 
         // LIMIT
-        if (total > budget * 1.05) return;
+        if (total > budget * 1.08) return;
+
+        // FPS
+        const fps =
+            estimateFPS(gpu.name, purpose);
 
         builds.push({
-            name: `${cfg.name} сборка (${purpose})`,
+
+            name:
+                `${cfg.name} сборка (${purpose})`,
 
             cpu,
             gpu,
             ram,
+
             mobo: motherboard,
+
             psu,
 
-            total: Math.round(total)
+            total: Math.round(total),
+
+            fps
         });
     });
 
@@ -235,13 +452,18 @@ function generateBuilds() {
 // ================= RENDER =================
 function renderBuilds(builds) {
 
-    const el = document.getElementById('results');
+    const el =
+        document.getElementById('results');
 
     if (!builds.length) {
 
         el.innerHTML = `
+
             <div class="alert alert-warning">
-                Не удалось подобрать сборку под этот бюджет
+
+                Не удалось подобрать сборку
+                под этот бюджет
+
             </div>
         `;
 
@@ -254,30 +476,161 @@ function renderBuilds(builds) {
 
             <h4>${b.name}</h4>
 
-            <div class="small">
-                CPU: ${b.cpu.name}<br>
-                GPU: ${b.gpu.name}<br>
-                RAM: ${b.ram.name}<br>
-                MB: ${b.mobo.name}<br>
-                PSU: ${b.psu.name}
+            <div class="specs-list">
+
+                <div class="spec-item">
+                    <i class="bi bi-cpu"></i>
+                    <span>CPU: ${b.cpu.name}</span>
+                </div>
+
+                <div class="spec-item">
+                    <i class="bi bi-gpu-card"></i>
+                    <span>GPU: ${b.gpu.name}</span>
+                </div>
+
+                <div class="spec-item">
+                    <i class="bi bi-memory"></i>
+                    <span>RAM: ${b.ram.name}</span>
+                </div>
+
+                <div class="spec-item">
+                    <i class="bi bi-motherboard"></i>
+                    <span>MB: ${b.mobo.name}</span>
+                </div>
+
+                <div class="spec-item">
+                    <i class="bi bi-plugin"></i>
+                    <span>PSU: ${b.psu.name}</span>
+                </div>
+
             </div>
 
-            <div class="price">
+            <div class="price mt-3">
+
                 ${b.total.toLocaleString('ru-RU')} ₽
+
             </div>
+
+            <!-- FPS TOGGLE -->
+
+            <div class="fps-dropdown">
+
+                <button
+                    class="fps-toggle"
+                    onclick="toggleFPS(${i})"
+                >
+
+                    <div class="fps-toggle-left">
+
+                        <i class="bi bi-bar-chart-line"></i>
+
+                        <span>
+                            Предполагаемый FPS
+                        </span>
+
+                    </div>
+
+                    <i
+                        id="fps-arrow-${i}"
+                        class="bi bi-chevron-down"
+                    ></i>
+
+                </button>
+
+                <div
+                    class="fps-content"
+                    id="fps-content-${i}"
+                >
+
+                    <!-- CS2 -->
+
+                    <div class="fps-game">
+
+                        <div class="fps-game-left">
+
+                            <img
+                                class="game-logo"
+                                src="https://tse1.mm.bing.net/th/id/OIP.bRnOPkGchi-9lUJIYiCUZAAAAA?cb=thfc1&rs=1&pid=ImgDetMain&o=7&rm=3"
+                            >
+
+                            <span>CS2</span>
+
+                        </div>
+
+                        <div class="fps-value">
+                            ${b.fps.cs2}
+                        </div>
+
+                    </div>
+
+                    <!-- GTA -->
+
+                    <div class="fps-game">
+
+                        <div class="fps-game-left">
+
+                            <img
+                                class="game-logo"
+                               src="https://gameshost.games/GTA5/icon.ico"
+                            >
+
+                            <span>GTA V</span>
+
+                        </div>
+
+                        <div class="fps-value">
+                            ${b.fps.gta5}
+                        </div>
+
+                    </div>
+
+                    <!-- DOTA -->
+
+                    <div class="fps-game">
+
+                        <div class="fps-game-left">
+
+                            <img
+                                class="game-logo"
+                              src="https://fonzon.club/uploads/posts/2022-01/thumbs/1643355923_24-fonzon-club-p-dota-2-logotip-bez-fona-49.png"
+                            >
+
+                            <span>Dota 2</span>
+
+                        </div>
+
+                        <div class="fps-value">
+                            ${b.fps.dota2}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- BUTTONS -->
 
             <button
                 onclick="saveBuild(${i})"
-                class="btn btn-success btn-sm mt-2"
+                class="btn btn-success save-btn mt-3"
             >
+
+                <i class="bi bi-floppy"></i>
+
                 Сохранить
+
             </button>
 
             <button
                 onclick="openEditorFromGenerated(${i})"
-                class="btn btn-outline-primary btn-sm mt-2"
+                class="btn btn-outline-primary edit-btn mt-2"
             >
+
+                <i class="bi bi-pencil-square"></i>
+
                 Редактировать
+
             </button>
 
         </div>
@@ -295,24 +648,39 @@ async function saveBuild(i) {
     const userId = getUserId();
 
     await fetch('/api/save', {
+
         method: 'POST',
+
         headers: {
             'Content-Type': 'application/json'
         },
+
         body: JSON.stringify({
+
             user_id: userId,
 
-            purpose: document.getElementById('purpose').value,
+            purpose:
+                document.getElementById(
+                    'purpose'
+                ).value,
 
-            budget: parseInt(
-                document.getElementById('budget').value
-            ),
+            budget:
+                parseInt(
+                    document.getElementById(
+                        'budget'
+                    ).value
+                ),
 
             components: {
+
                 cpu: b.cpu.name,
+
                 gpu: b.gpu.name,
+
                 ram: b.ram.name,
+
                 motherboard: b.mobo.name,
+
                 psu: b.psu.name
             },
 
@@ -328,11 +696,13 @@ async function showMyBuilds() {
 
     const userId = getUserId();
 
-    const res = await fetch('/api/mybuilds/' + userId);
+    const res =
+        await fetch('/api/mybuilds/' + userId);
 
     const builds = await res.json();
 
-    const el = document.getElementById('builds-list');
+    const el =
+        document.getElementById('builds-list');
 
     if (!builds.length) {
 
@@ -351,13 +721,19 @@ async function showMyBuilds() {
                 <b>${b.purpose}</b><br><br>
 
                 CPU: ${b.components.cpu}<br>
+
                 GPU: ${b.components.gpu}<br>
+
                 RAM: ${b.components.ram}<br>
+
                 MB: ${b.components.motherboard}<br>
+
                 PSU: ${b.components.psu}<br>
 
                 <div class="price mt-2">
+
                     ${b.total.toLocaleString('ru-RU')} ₽
+
                 </div>
 
                 <button
@@ -388,14 +764,42 @@ async function showMyBuilds() {
 async function deleteBuild(id) {
 
     await fetch('/api/delete_build', {
+
         method: 'POST',
+
         headers: {
             'Content-Type': 'application/json'
         },
+
         body: JSON.stringify({ id })
     });
 
-    showMyBuilds();
+    const modalEl =
+        document.getElementById(
+            'myBuildsModal'
+        );
+
+    const modal =
+        bootstrap.Modal.getInstance(modalEl);
+
+    if (modal) {
+
+        modal.hide();
+    }
+
+    document
+        .querySelectorAll('.modal-backdrop')
+        .forEach(x => x.remove());
+
+    document.body.classList.remove('modal-open');
+
+    document.body.style = '';
+
+    setTimeout(() => {
+
+        showMyBuilds();
+
+    }, 150);
 }
 
 // ================= OPEN EDITOR GENERATED =================
@@ -404,10 +808,15 @@ function openEditorFromGenerated(i) {
     const b = buildsCache[i];
 
     currentEditingBuild = {
+
         cpu: b.cpu.name,
+
         gpu: b.gpu.name,
+
         ram: b.ram.name,
+
         motherboard: b.mobo.name,
+
         psu: b.psu.name
     };
 
@@ -421,11 +830,13 @@ async function editSavedBuild(id) {
 
     const userId = getUserId();
 
-    const res = await fetch('/api/mybuilds/' + userId);
+    const res =
+        await fetch('/api/mybuilds/' + userId);
 
     const builds = await res.json();
 
-    const build = builds.find(x => x.id === id);
+    const build =
+        builds.find(x => x.id === id);
 
     if (!build) return;
 
@@ -479,13 +890,15 @@ function fillEditor() {
 // ================= SELECTS =================
 function fillSelect(id, list, selected) {
 
-    const sel = document.getElementById(id);
+    const sel =
+        document.getElementById(id);
 
     sel.innerHTML = "";
 
     list.forEach(x => {
 
-        const opt = document.createElement("option");
+        const opt =
+            document.createElement("option");
 
         opt.value = x.name;
 
@@ -493,6 +906,7 @@ function fillSelect(id, list, selected) {
             `${x.name} (${x.price.toLocaleString('ru-RU')} ₽)`;
 
         if (x.name === selected) {
+
             opt.selected = true;
         }
 
@@ -505,76 +919,103 @@ function fillSelect(id, list, selected) {
 // ================= UPDATE PRICE =================
 function updateEditorPrice() {
 
-    const cpu = findByName(
-        allComponents.cpu,
-        document.getElementById('edit-cpu').value
-    );
+    const cpu =
+        findByName(
+            allComponents.cpu,
+            document.getElementById(
+                'edit-cpu'
+            ).value
+        );
 
-    const gpu = findByName(
-        allComponents.gpu,
-        document.getElementById('edit-gpu').value
-    );
+    const gpu =
+        findByName(
+            allComponents.gpu,
+            document.getElementById(
+                'edit-gpu'
+            ).value
+        );
 
-    const ram = findByName(
-        allComponents.ram,
-        document.getElementById('edit-ram').value
-    );
+    const ram =
+        findByName(
+            allComponents.ram,
+            document.getElementById(
+                'edit-ram'
+            ).value
+        );
 
-    const mobo = findByName(
-        allComponents.motherboard,
-        document.getElementById('edit-mobo').value
-    );
+    const mobo =
+        findByName(
+            allComponents.motherboard,
+            document.getElementById(
+                'edit-mobo'
+            ).value
+        );
 
-    const psu = findByName(
-        allComponents.psu,
-        document.getElementById('edit-psu').value
-    );
+    const psu =
+        findByName(
+            allComponents.psu,
+            document.getElementById(
+                'edit-psu'
+            ).value
+        );
 
     const total =
-        (cpu?.price || 0) +
-        (gpu?.price || 0) +
-        (ram?.price || 0) +
-        (mobo?.price || 0) +
+
+        (cpu?.price || 0)
+        +
+        (gpu?.price || 0)
+        +
+        (ram?.price || 0)
+        +
+        (mobo?.price || 0)
+        +
         (psu?.price || 0);
 
-    document.getElementById('edit-total').innerText =
-        total.toLocaleString('ru-RU') + " ₽";
+    document.getElementById(
+        'edit-total'
+    ).innerText =
 
-    // compatibility
-    const problems = checkCompatibility(cpu, mobo, ram);
+        total.toLocaleString('ru-RU')
+        +
+        " ₽";
 
-    let compatEl = document.getElementById('compatibility-box');
+    const problems =
+        checkCompatibility(
+            cpu,
+            mobo,
+            ram
+        );
 
-    if (!compatEl) {
-
-        compatEl = document.createElement("div");
-
-        compatEl.id = "compatibility-box";
-
-        compatEl.style.marginTop = "15px";
-
-        document.querySelector(".modal-body")
-            .appendChild(compatEl);
-    }
+    const compatEl =
+        document.getElementById(
+            'compatibility-box'
+        );
 
     if (!problems.length) {
 
         compatEl.innerHTML = `
+
             <div class="alert alert-success">
+
                 ✅ Все комплектующие совместимы
+
             </div>
         `;
 
     } else {
 
         compatEl.innerHTML = `
+
             <div class="alert alert-danger">
+
                 ${problems.join("<br>")}
+
             </div>
         `;
     }
 
     window.editedBuild = {
+
         cpu,
         gpu,
         ram,
@@ -591,16 +1032,18 @@ async function saveEditedBuild() {
 
     if (!b) return;
 
-    const compatibility = checkCompatibility(
-        b.cpu,
-        b.mobo,
-        b.ram
-    );
+    const compatibility =
+        checkCompatibility(
+            b.cpu,
+            b.mobo,
+            b.ram
+        );
 
     if (compatibility.length) {
 
         alert(
-            "Нельзя сохранить несовместимую сборку:\n\n" +
+            "Нельзя сохранить несовместимую сборку:\n\n"
+            +
             compatibility.join("\n")
         );
 
@@ -609,28 +1052,43 @@ async function saveEditedBuild() {
 
     const userId = getUserId();
 
-    // UPDATE EXISTING
+    // UPDATE
     if (editingBuildId) {
 
         await fetch('/api/update_build', {
+
             method: 'POST',
+
             headers: {
                 'Content-Type': 'application/json'
             },
+
             body: JSON.stringify({
+
                 id: editingBuildId,
 
-                purpose: document.getElementById('purpose').value,
+                purpose:
+                    document.getElementById(
+                        'purpose'
+                    ).value,
 
-                budget: parseInt(
-                    document.getElementById('budget').value
-                ),
+                budget:
+                    parseInt(
+                        document.getElementById(
+                            'budget'
+                        ).value
+                    ),
 
                 components: {
+
                     cpu: b.cpu.name,
+
                     gpu: b.gpu.name,
+
                     ram: b.ram.name,
+
                     motherboard: b.mobo.name,
+
                     psu: b.psu.name
                 },
 
@@ -644,24 +1102,39 @@ async function saveEditedBuild() {
 
         // SAVE NEW
         await fetch('/api/save', {
+
             method: 'POST',
+
             headers: {
                 'Content-Type': 'application/json'
             },
+
             body: JSON.stringify({
+
                 user_id: userId,
 
-                purpose: document.getElementById('purpose').value,
+                purpose:
+                    document.getElementById(
+                        'purpose'
+                    ).value,
 
-                budget: parseInt(
-                    document.getElementById('budget').value
-                ),
+                budget:
+                    parseInt(
+                        document.getElementById(
+                            'budget'
+                        ).value
+                    ),
 
                 components: {
+
                     cpu: b.cpu.name,
+
                     gpu: b.gpu.name,
+
                     ram: b.ram.name,
+
                     motherboard: b.mobo.name,
+
                     psu: b.psu.name
                 },
 
@@ -672,7 +1145,65 @@ async function saveEditedBuild() {
         alert("Сборка сохранена");
     }
 
-    showMyBuilds();
+    const editor =
+        bootstrap.Modal.getInstance(
+            document.getElementById('editorModal')
+        );
+
+    if (editor) {
+
+        editor.hide();
+    }
+
+    setTimeout(() => {
+
+        showMyBuilds();
+
+    }, 200);
+}
+
+// ================= BUDGET PRESETS =================
+function setBudget(value) {
+
+    const slider =
+        document.getElementById('budget');
+
+    slider.value = value;
+
+    document.getElementById(
+        'budget-value'
+    ).textContent =
+
+        parseInt(value)
+            .toLocaleString('ru-RU')
+        +
+        " ₽";
+}
+// ================= FPS TOGGLE =================
+function toggleFPS(i) {
+
+    const content =
+        document.getElementById(`fps-content-${i}`);
+
+    const arrow =
+        document.getElementById(`fps-arrow-${i}`);
+
+    if (
+        content.style.display === "block"
+    ) {
+
+        content.style.display = "none";
+
+        arrow.className =
+            "bi bi-chevron-down";
+
+    } else {
+
+        content.style.display = "block";
+
+        arrow.className =
+            "bi bi-chevron-up";
+    }
 }
 
 // ================= INIT =================
@@ -680,15 +1211,28 @@ window.onload = async () => {
 
     await loadComponents();
 
-    const slider = document.getElementById('budget');
-    const label = document.getElementById('budget-value');
+    const slider =
+        document.getElementById('budget');
+
+    const label =
+        document.getElementById(
+            'budget-value'
+        );
 
     label.textContent =
-        parseInt(slider.value).toLocaleString('ru-RU') + " ₽";
+
+        parseInt(slider.value)
+            .toLocaleString('ru-RU')
+        +
+        " ₽";
 
     slider.oninput = () => {
 
         label.textContent =
-            parseInt(slider.value).toLocaleString('ru-RU') + " ₽";
+
+            parseInt(slider.value)
+                .toLocaleString('ru-RU')
+            +
+            " ₽";
     };
 };
