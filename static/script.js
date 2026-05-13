@@ -94,8 +94,10 @@ function findByName(list = [], name) {
 }
 
 // ================= FPS =================
-function estimateFPS(gpuName = "", purpose = "gaming") {
+// ================= FPS =================
+function estimateFPS(cpuName = "", gpuName = "", purpose = "gaming") {
 
+    cpuName = cpuName.toLowerCase();
     gpuName = gpuName.toLowerCase();
 
     if (purpose !== "gaming") {
@@ -107,70 +109,142 @@ function estimateFPS(gpuName = "", purpose = "gaming") {
         };
     }
 
-    // HIGH END
+    let gpuScore = 0;
+    let cpuScore = 0;
+
+    // ================= GPU SCORE =================
+
+    // ULTRA
     if (
         gpuName.includes("5090") ||
         gpuName.includes("5080") ||
-        gpuName.includes("4090") ||
-        gpuName.includes("4080")
+        gpuName.includes("4090")
     ) {
+        gpuScore = 10;
+    }
 
-        return {
-            cs2: "400+ FPS",
-            gta5: "220 FPS",
-            dota2: "320 FPS"
-        };
+    // HIGH
+    else if (
+        gpuName.includes("4080") ||
+        gpuName.includes("4070 ti") ||
+        gpuName.includes("7900")
+    ) {
+        gpuScore = 9;
     }
 
     // GOOD
-    if (
+    else if (
         gpuName.includes("4070") ||
-        gpuName.includes("5070") ||
-        gpuName.includes("7800")
+        gpuName.includes("7800") ||
+        gpuName.includes("7700 xt")
     ) {
+        gpuScore = 8;
+    }
 
-        return {
-            cs2: "320 FPS",
-            gta5: "180 FPS",
-            dota2: "220 FPS"
-        };
+    // MID+
+    else if (
+        gpuName.includes("4060 ti") ||
+        gpuName.includes("3070") ||
+        gpuName.includes("6800")
+    ) {
+        gpuScore = 7;
     }
 
     // MID
-    if (
+    else if (
         gpuName.includes("4060") ||
         gpuName.includes("3060") ||
-        gpuName.includes("3070") ||
-        gpuName.includes("7700")
+        gpuName.includes("6700") ||
+        gpuName.includes("7600")
     ) {
+        gpuScore = 6;
+    }
 
-        return {
-            cs2: "240 FPS",
-            gta5: "140 FPS",
-            dota2: "180 FPS"
-        };
+    // LOW+
+    else if (
+        gpuName.includes("3050") ||
+        gpuName.includes("6600")
+    ) {
+        gpuScore = 5;
     }
 
     // LOW
-    if (
-        gpuName.includes("3050") ||
-        gpuName.includes("6600") ||
-        gpuName.includes("2060")
+    else if (
+        gpuName.includes("2060") ||
+        gpuName.includes("1660")
     ) {
-
-        return {
-            cs2: "170 FPS",
-            gta5: "95 FPS",
-            dota2: "120 FPS"
-        };
+        gpuScore = 4;
     }
 
-    // VERY LOW
-    return {
+    else {
+        gpuScore = 3;
+    }
 
-        cs2: "100 FPS",
-        gta5: "60 FPS",
-        dota2: "80 FPS"
+    // ================= CPU SCORE =================
+
+    // TOP
+    if (
+        cpuName.includes("7800x3d") ||
+        cpuName.includes("14900") ||
+        cpuName.includes("14700")
+    ) {
+        cpuScore = 10;
+    }
+
+    // HIGH
+    else if (
+        cpuName.includes("14600") ||
+        cpuName.includes("13700") ||
+        cpuName.includes("7700")
+    ) {
+        cpuScore = 8;
+    }
+
+    // GOOD
+    else if (
+        cpuName.includes("13600") ||
+        cpuName.includes("7600") ||
+        cpuName.includes("5800x")
+    ) {
+        cpuScore = 7;
+    }
+
+    // MID
+    else if (
+        cpuName.includes("5600") ||
+        cpuName.includes("12400") ||
+        cpuName.includes("5700")
+    ) {
+        cpuScore = 6;
+    }
+
+    // LOW
+    else if (
+        cpuName.includes("5500") ||
+        cpuName.includes("10400")
+    ) {
+        cpuScore = 4;
+    }
+
+    else {
+        cpuScore = 3;
+    }
+
+    // ================= FINAL FPS =================
+
+    const cs2 =
+        Math.round((gpuScore * 25) + (cpuScore * 18));
+
+    const gta5 =
+        Math.round((gpuScore * 18) + (cpuScore * 8));
+
+    const dota2 =
+        Math.round((gpuScore * 20) + (cpuScore * 16));
+
+    return {
+        cs2: `${cs2} FPS`,
+        gta5: `${gta5} FPS`,
+        dota2: `${dota2} FPS`
     };
 }
 
@@ -250,23 +324,23 @@ function generateBuilds() {
         );
     }
 
-    const configs = [
+   const configs = [
 
-        {
-            name: "Бюджет",
-            ratio: 0.85
-        },
+    {
+        name: "Бюджет",
+        ratio: 0.72
+    },
 
-        {
-            name: "Баланс",
-            ratio: 0.95
-        },
+    {
+        name: "Баланс",
+        ratio: 0.86
+    },
 
-        {
-            name: "Максимум",
-            ratio: 1.0
-        }
-    ];
+    {
+        name: "Максимум",
+        ratio: 1.0
+    }
+];
 
     const builds = [];
 
@@ -422,10 +496,20 @@ function generateBuilds() {
         if (total > budget * 1.08) return;
 
         // FPS
-        const fps =
-            estimateFPS(gpu.name, purpose);
+       const fps =
+    estimateFPS(cpu.name, gpu.name, purpose);
 
-        builds.push({
+        const duplicate = builds.find(x =>
+
+    x.cpu.name === cpu.name
+    &&
+    x.gpu.name === gpu.name
+);
+
+if (duplicate) return;
+
+builds.push({
+            
 
             name:
                 `${cfg.name} сборка (${purpose})`,
