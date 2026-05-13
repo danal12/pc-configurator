@@ -297,13 +297,8 @@ function checkCompatibility(cpu, mobo, ram) {
 // ================= GENERATE BUILDS =================
 function generateBuilds() {
 
-    const purpose =
-        document.getElementById('purpose').value;
-
-    const budget =
-        parseInt(
-            document.getElementById('budget').value
-        );
+    const purpose = document.getElementById('purpose').value;
+    const budget = parseInt(document.getElementById('budget').value);
 
     let cpus = allComponents.cpu || [];
     let gpus = allComponents.gpu || [];
@@ -313,224 +308,151 @@ function generateBuilds() {
 
     const platform = getPlatform();
 
-    // FILTER PLATFORM
+    // PLATFORM FILTER
     if (platform !== "any") {
-
-        cpus = cpus.filter(x =>
-
-            x.platform === platform
-            ||
-            x.platform === "any"
-        );
+        cpus = cpus.filter(x => x.platform === platform || x.platform === "any");
     }
 
-   const configs = [
+    // PURPOSE RATIOS
+    let cpuShare = 0.28;
+    let gpuShare = 0.42;
+    let ramShare = 0.12;
 
-    {
-        name: "Бюджет",
-        ratio: 0.72
-    },
-
-    {
-        name: "Баланс",
-        ratio: 0.86
-    },
-
-    {
-        name: "Максимум",
-        ratio: 1.0
+    if (purpose === "video") {
+        cpuShare = 0.35; gpuShare = 0.35; ramShare = 0.15;
     }
-];
+    if (purpose === "office") {
+        cpuShare = 0.35; gpuShare = 0.10; ramShare = 0.15;
+    }
+
+    const cpuCandidates = cpus.filter(x => x.price <= budget * cpuShare * 1.5);
+    const gpuCandidates = purpose === "office" 
+        ? [{ name: "Встроенная графика", price: 0, specs: "iGPU" }]
+        : gpus.filter(x => x.price <= budget * gpuShare * 1.5);
 
     const builds = [];
 
-    configs.forEach(cfg => {
+    for (const cpu of cpuCandidates) {
+        for (const gpu of gpuCandidates) {
 
-        const target = budget * cfg.ratio;
+            const socket = getSocket(cpu.specs);
+            let motherboardPool = mobos.filter(m => m.specs.includes(socket));
+            if (!motherboardPool.length) continue;
 
-        let cpuShare = 0.28;
-        let gpuShare = 0.42;
-        let ramShare = 0.12;
+            const motherboard = pickBest(motherboardPool, budget * 0.15) || motherboardPool[0];
+            if (!motherboard) continue;
 
-        // VIDEO
-        if (purpose === "video") {
+            const ramType = motherboard.specs.includes("DDR5") ? "DDR5" : "DDR4";
+            const ramPool = rams.filter(r => r.specs.includes(ramType));
+            const ram = findClosest(ramPool, budget * ramShare);
+            if (!ram) continue;
 
-            cpuShare = 0.35;
-            gpuShare = 0.35;
-            ramShare = 0.15;
+            // PSU selection
+            let psu;
+            if (gpu.price >= 120000) psu = psus.find(x => x.name.includes("850"));
+            else if (gpu.price >= 70000) psu = psus.find(x => x.name.includes("750"));
+            else if (gpu.price >= 35000) psu = psus.find(x => x.name.includes("650"));
+            else psu = psus.find(x => x.name.includes("550"));
+
+            if (!psu) psu = psus[0];
+            if (!psu) continue;
+
+            const total = cpu.price + gpu.price + ram.price + motherboard.price + psu.price;
+
+            if (total < budget * 0.70 || total > budget) continue;
+
+            const problems = checkCompatibility(cpu, motherboard, ram);
+            if (problems.length) continue;
+
+            // ================= УЛУЧШЕННЫЙ РАСЧЁТ FPS =================
+            const fps = calculateFPS(cpu, gpu, purpose, budget);
+
+            builds.push({
+                name: `${purpose.toUpperCase()} BUILD`,
+                cpu,
+                gpu,
+                ram,
+                mobo: motherboard,
+                psu,
+                total: Math.round(total),
+                fps: {
+                    cs2: `${fps.cs2} FPS`,
+                    gta5: `${fps.gta5} FPS`,
+                    dota2: `${fps.dota2} FPS`
+                }
+            });
         }
+    }
 
-        // OFFICE
-        if (purpose === "office") {
-
-            cpuShare = 0.35;
-            gpuShare = 0.10;
-            ramShare = 0.15;
-        }
-
-        // CPU
-        const cpu = findClosest(
-
-            cpus.filter(x =>
-                x.price <= target * cpuShare * 1.3
-            ),
-
-            target * cpuShare
+    // Убираем дубли
+    const uniqueBuilds = [];
+    builds.forEach(b => {
+        const exists = uniqueBuilds.find(x =>
+            x.cpu.name === b.cpu.name &&
+            x.gpu.name === b.gpu.name &&
+            x.ram.name === b.ram.name
         );
-
-        if (!cpu) return;
-
-        // MOBO
-        const socket = getSocket(cpu.specs);
-
-        let motherboardPool = mobos.filter(m =>
-            m.specs.includes(socket)
-        );
-
-        let motherboard = pickBest(
-
-            motherboardPool,
-            target * 0.12
-        );
-
-        if (!motherboard) {
-
-            motherboard = motherboardPool[0];
-        }
-
-        if (!motherboard) return;
-
-        // RAM
-        const ramType =
-            motherboard.specs.includes("DDR5")
-                ? "DDR5"
-                : "DDR4";
-
-        let ramPool = rams.filter(r =>
-            r.specs.includes(ramType)
-        );
-
-        const ram = findClosest(
-
-            ramPool.filter(x =>
-                x.price <= target * ramShare * 1.5
-            ),
-
-            target * ramShare
-        );
-
-        if (!ram) return;
-
-        // GPU
-        let gpu;
-
-        if (purpose === "office") {
-
-            gpu = {
-                name: "Встроенная графика",
-                price: 0,
-                specs: "iGPU"
-            };
-
-        } else {
-
-            gpu = findClosest(
-
-                gpus.filter(x =>
-                    x.price <= target * gpuShare * 1.3
-                ),
-
-                target * gpuShare
-            );
-
-            if (!gpu) return;
-        }
-
-        // PSU
-        let psu;
-
-        if (gpu.price >= 120000) {
-
-            psu = psus.find(x =>
-                x.name.includes("850")
-            );
-
-        } else if (gpu.price >= 70000) {
-
-            psu = psus.find(x =>
-                x.name.includes("750")
-            );
-
-        } else if (gpu.price >= 35000) {
-
-            psu = psus.find(x =>
-                x.name.includes("650")
-            );
-
-        } else {
-
-            psu = psus.find(x =>
-                x.name.includes("550")
-            );
-        }
-
-        if (!psu) {
-
-            psu = psus[0];
-        }
-
-        // TOTAL
-        const total =
-
-            cpu.price
-            +
-            gpu.price
-            +
-            ram.price
-            +
-            motherboard.price
-            +
-            psu.price;
-
-        // LIMIT
-        if (total > budget * 1.08) return;
-
-        // FPS
-       const fps =
-    estimateFPS(cpu.name, gpu.name, purpose);
-
-        const duplicate = builds.find(x =>
-
-    x.cpu.name === cpu.name
-    &&
-    x.gpu.name === gpu.name
-);
-
-if (duplicate) return;
-
-builds.push({
-            
-
-            name:
-                `${cfg.name} сборка (${purpose})`,
-
-            cpu,
-            gpu,
-            ram,
-
-            mobo: motherboard,
-
-            psu,
-
-            total: Math.round(total),
-
-            fps
-        });
+        if (!exists) uniqueBuilds.push(b);
     });
 
-    buildsCache = builds;
+    uniqueBuilds.sort((a, b) => a.total - b.total);
+    buildsCache = uniqueBuilds;
+    renderBuilds(uniqueBuilds);
+}
 
-    renderBuilds(builds);
+function calculateFPS(cpu, gpu, purpose, budget) {
+    const cpuName = cpu.name.toLowerCase();
+    const gpuName = gpu.name.toLowerCase();
+
+    // === GPU SCORE (0-100) ===
+    let gpuScore = 35; // базовый уровень
+
+    if (gpuName.includes("5090") || gpuName.includes("4090")) gpuScore = 98;
+    else if (gpuName.includes("5080") || gpuName.includes("4080")) gpuScore = 88;
+    else if (gpuName.includes("5070") || gpuName.includes("4070 ti")) gpuScore = 78;
+    else if (gpuName.includes("4070")) gpuScore = 72;
+    else if (gpuName.includes("4060 ti")) gpuScore = 62;
+    else if (gpuName.includes("4060")) gpuScore = 55;
+    else if (gpuName.includes("7900 xtx")) gpuScore = 85;
+    else if (gpuName.includes("7900 xt")) gpuScore = 78;
+    else if (gpuName.includes("7800 xt")) gpuScore = 70;
+    else if (gpuName.includes("7600")) gpuScore = 58;
+    else if (gpuName.includes("6600")) gpuScore = 52;
+    else if (gpuName.includes("3060")) gpuScore = 50;
+
+    // === CPU SCORE (0-100) ===
+    let cpuScore = 40;
+
+    if (cpuName.includes("7800x3d")) cpuScore = 95;
+    else if (cpuName.includes("9800x3d") || cpuName.includes("14900k")) cpuScore = 92;
+    else if (cpuName.includes("14700")) cpuScore = 85;
+    else if (cpuName.includes("7700") || cpuName.includes("13700")) cpuScore = 78;
+    else if (cpuName.includes("7600") || cpuName.includes("13600")) cpuScore = 72;
+    else if (cpuName.includes("5700x3d")) cpuScore = 68;
+    else if (cpuName.includes("12400") || cpuName.includes("5600")) cpuScore = 58;
+    else if (cpuName.includes("13400") || cpuName.includes("12400f")) cpuScore = 55;
+
+    // Учёт bottleneck
+    let bottleneck = 0;
+    if (cpuScore < gpuScore - 15) {
+        bottleneck = Math.floor((gpuScore - cpuScore - 15) * 0.45);
+    }
+
+    // Базовый FPS (с учётом бюджета)
+    const budgetFactor = Math.min(1.35, Math.max(0.75, budget / 120000));
+
+    let baseFPS = Math.round((gpuScore * 1.8 + cpuScore * 0.9) * budgetFactor);
+
+    // Разные игры
+    const cs2 = Math.max(70, Math.round(baseFPS * 1.45 - bottleneck * 1.1));
+    const gta5 = Math.max(55, Math.round(baseFPS * 0.92 - bottleneck * 0.7));
+    const dota2 = Math.max(80, Math.round(baseFPS * 1.25 - bottleneck * 0.4));
+
+    return {    
+        cs2: cs2,
+        gta5: gta5,
+        dota2: dota2
+    };
 }
 
 // ================= RENDER =================
